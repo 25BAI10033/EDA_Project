@@ -81,6 +81,8 @@ report_engine = ReportEngine(eda_engine=eda_engine, cleaning_engine=cleaning_eng
 
 
 @app.get("/")
+@app.get("/api")
+@app.get("/api/")
 def read_root():
     """Root endpoint welcoming clients and confirming API availability."""
     return {
@@ -93,6 +95,7 @@ def read_root():
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health_check():
     """Health check endpoint to verify system status."""
     return {

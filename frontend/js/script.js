@@ -12,8 +12,8 @@
  * 2. window.DATA_DETECTIVE_API_URL or window.API_BASE_URL
  * 3. HTML meta tag: <meta name="api-base-url" content="...">
  * 4. Browser localStorage: "DATA_DETECTIVE_API_URL" or "API_BASE_URL"
- * 5. Localhost fallback: "http://127.0.0.1:8000" ONLY when running on localhost / 127.0.0.1
- * 6. Cloud/Vercel deployment: NEVER defaults to window.location.origin! Returns null when missing.
+ * 5. Local development fallback: "http://127.0.0.1:8000" when running frontend locally (e.g. localhost:3000)
+ * 6. Deployed Vercel fallback: window.location.origin (unified deployment where Vercel routes both frontend and FastAPI)
  */
 function getApiBaseUrl() {
   if (typeof window !== "undefined" && window.DATA_DETECTIVE_CONFIG && window.DATA_DETECTIVE_CONFIG.API_BASE_URL) {
@@ -44,11 +44,16 @@ function getApiBaseUrl() {
   if (typeof window !== "undefined" && window.location) {
     const hostname = window.location.hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
-      return "http://127.0.0.1:8000";
+      if (window.location.port !== "8000") {
+        return "http://127.0.0.1:8000";
+      }
+    }
+    if (window.location.origin && window.location.protocol && window.location.protocol.startsWith("http")) {
+      return window.location.origin;
     }
   }
 
-  return null;
+  return "http://127.0.0.1:8000";
 }
 
 /**
@@ -350,24 +355,60 @@ async function checkBackendHealth() {
   try {
     const startTime = performance.now();
 
-    const healthResponse = await fetch(`${currentBaseUrl}/health`, {
+    // 1. Verify health status from primary or fallback health route
+    let healthData = null;
+    let healthResponse = await fetch(`${currentBaseUrl}/health`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
 
     if (!healthResponse.ok) {
+      healthResponse = await fetch(`${currentBaseUrl}/api/health`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+    }
+
+    if (!healthResponse.ok) {
       throw new Error(`HTTP error ${healthResponse.status}: ${healthResponse.statusText}`);
     }
 
-    const healthData = await healthResponse.json();
-
-    const rootResponse = await fetch(`${currentBaseUrl}/`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-
-    const rootData = rootResponse.ok ? await rootResponse.json() : null;
+    healthData = await healthResponse.json();
     const durationMs = Math.round(performance.now() - startTime);
+
+    // 2. Fetch root API information safely without failing if root is the static frontend HTML
+    let rootData = null;
+    try {
+      const isUnifiedHost = typeof window !== "undefined" && window.location && (currentBaseUrl === window.location.origin || currentBaseUrl === "");
+      const rootUrl = isUnifiedHost ? `${currentBaseUrl}/api` : `${currentBaseUrl}/`;
+
+      const rootResponse = await fetch(rootUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+
+      if (rootResponse.ok) {
+        const contentType = rootResponse.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          rootData = await rootResponse.json();
+        }
+      }
+
+      if (!rootData && isUnifiedHost) {
+        const fallbackResponse = await fetch(`${currentBaseUrl}/`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        if (fallbackResponse.ok) {
+          const contentType = fallbackResponse.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            rootData = await fallbackResponse.json();
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Non-critical: could not fetch root info JSON:", e);
+    }
 
     setHealthyHealthState(healthData, rootData, durationMs, currentBaseUrl);
   } catch (error) {
