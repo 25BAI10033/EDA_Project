@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Detective - Automated EDA, Cleaning &amp; Visualization Studio</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/chart.min.js"></script>
+</head>
+<body>
+  <!-- Header Navigation -->
+  <header class="header">
+    <div class="header-container">
+      <div class="logo-wrapper">
+        <div class="logo-icon">D</div>
+        <span class="logo-text">Data Detective</span>
+      </div>
+      <div id="statusBadge" class="badge-status">
+        <span class="status-dot"></span>
+        <span id="statusText">Checking Backend...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+    <!-- Hero / Intro -->
+    <section class="hero">
+      <span class="hero-pill">Phase 6: Automated EDA Report Generation</span>
+      <h1 class="hero-title">Data <span class="highlight">Detective</span></h1>
+      <p class="hero-description">
+        End-to-end platform for Exploratory Data Analysis (EDA), interactive data cleaning, dynamic visualization dashboards, and publication-ready automated PDF report generation. Inspect datasets, analyze distributions, impute missing values, cap outliers, scale features, build multi-chart analytical dashboards, and compile comprehensive audit reports.
+      </p>
+    </section>
+
+    <!-- Error Banner -->
+    <div id="errorAlert" class="alert alert-error" style="display: none;" role="alert">
+      <div class="alert-content">
+        <span class="alert-icon">&#9888;</span>
+        <span id="errorMessage" class="alert-text">An error occurred.</span>
+      </div>
+      <button id="btnDismissError" class="btn-icon" type="button" aria-label="Dismiss error">&times;</button>
+    </div>
+
+    <!-- Upload Section -->
+    <section class="card upload-card" id="uploadSection">
+      <h2 class="card-title">
+        <span class="card-title-icon">&#128194;</span>
+        Dataset Upload
+      </h2>
+      <p class="card-body">
+        Select or drag a CSV, Excel (.xlsx), or JSON (.json, .jsonl, .ndjson) file to inspect. Files are processed securely in-memory and are never stored on disk.
+      </p>
+
+      <!-- Drag & Drop Zone -->
+      <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Upload dataset drop area">
+        <input
+          type="file"
+          id="fileInput"
+          accept=".csv, .xlsx, .json, .jsonl, .ndjson, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/csv, application/json, application/x-ndjson"
+          style="display: none;"
+        />
+        <div class="dropzone-inner">
+          <div class="dropzone-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <p class="dropzone-primary-text">
+            <strong>Choose a file</strong> or drag and drop it here
+          </p>
+          <p class="dropzone-secondary-text">
+            Supported formats: <strong>CSV</strong>, <strong>Excel (.xlsx)</strong>, or <strong>JSON (.json, .jsonl)</strong> &bull; Max <strong>10 MB</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- File Staging Preview Area -->
+      <div id="fileStage" class="file-stage" style="display: none;">
+        <div class="file-stage-info">
+          <div class="file-stage-icon">&#128196;</div>
+          <div>
+            <div id="stagedFileName" class="staged-file-name">filename.csv</div>
+            <div id="stagedFileSize" class="staged-file-size">0 KB</div>
+          </div>
+        </div>
+        <div class="file-stage-actions">
+          <button id="btnUpload" class="btn btn-primary" type="button">
+            Upload &amp; Preview
+          </button>
+          <button id="btnCancelStage" class="btn btn-secondary" type="button">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Upload Progress Bar -->
+      <div id="uploadProgressContainer" class="progress-container" style="display: none;">
+        <div class="progress-header">
+          <span id="uploadProgressLabel" class="progress-label">Uploading file...</span>
+          <span id="uploadProgressPercent" class="progress-percent">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="uploadProgressBar" class="progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dataset Inspection Results Section (Phase 2 Preview) -->
+    <section id="resultsSection" class="results-section" style="display: none;">
+      <!-- Quick Stats Cards Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="stat-label">File Name</span>
+            <span id="statFileFormat" class="stat-format-pill" style="display: none;">-</span>
+          </div>
+          <span id="statFileName" class="stat-value text-truncate">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">File Size</span>
+          <span id="statFileSize" class="stat-value">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Rows</span>
+          <span id="statRowCount" class="stat-value">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Columns</span>
+          <span id="statColCount" class="stat-value">-</span>
+        </div>
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="results-action-bar">
+        <div class="results-title-group">
+          <h2 class="section-title">Dataset Inspection</h2>
+          <span class="preview-badge">5-Row Preview</span>
+        </div>
+        <div class="action-btn-group">
+          <button id="btnRunAnalysis" class="btn btn-primary" type="button">
+            <span class="btn-icon-symbol">&#9881;</span> Analyze Dataset (Automated EDA)
+          </button>
+          <button id="btnOpenCleaningStudio" class="btn btn-primary" type="button" style="background-color: #1d4ed8;">
+            <span class="btn-icon-symbol">&#9986;</span> Cleaning Studio
+          </button>
+          <button id="btnOpenVisualizationStudio" class="btn btn-primary" type="button" style="background-color: #0284c7;">
+            <span class="btn-icon-symbol">&#128202;</span> Visualization Studio
+          </button>
+          <button id="btnOpenReportStudio" class="btn btn-primary" type="button" style="background-color: #0f172a;">
+            <span class="btn-icon-symbol">&#128196;</span> Generate Report
+          </button>
+          <button id="btnUploadAnother" class="btn btn-secondary" type="button">
+            &uarr; Upload Another File
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Table Card -->
+      <div class="card preview-card">
+        <div class="card-header-flex">
+          <h3 class="card-title">
+            <span class="card-title-icon">&#9638;</span>
+            Data Preview (First 5 Rows)
+          </h3>
+          <span class="text-muted" style="font-size: 0.85rem;">Showing rows 1 &ndash; 5</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="previewTable">
+            <thead id="previewTableHead"></thead>
+            <tbody id="previewTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Column Schema & Data Types Card -->
+      <div class="card schema-card">
+        <h3 class="card-title">
+          <span class="card-title-icon">&#9776;</span>
+          Column Schema &amp; Data Types
+        </h3>
+        <p class="card-body">
+          Detected column identifiers and corresponding Pandas data types.
+        </p>
+        <div class="table-responsive">
+          <table class="data-table" id="schemaTable">
+            <thead>
+              <tr>
+                <th style="width: 60px;">#</th>
+                <th>Column Name</th>
+                <th>Pandas Data Type</th>
+              </tr>
+            </thead>
+            <tbody id="schemaTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analysis Loading Spinner Card -->
+    <div id="analysisLoading" class="card analysis-loading-card" style="display: none;">
+      <div class="spinner"></div>
+      <div class="loading-text-group">
+        <h3 class="loading-title">Generating Automated EDA Report...</h3>
+        <p class="loading-subtitle">Computing statistical distributions, IQR outliers, correlations, and data profiling with Pandas &amp; NumPy.</p>
+      </div>
+    </div>
+
+    <!-- Automated EDA Dashboard Section (Phase 3) -->
+    <section id="edaDashboardSection" class="eda-dashboard" style="display: none;">
+      <div class="eda-section-header">
+        <div class="results-title-group">
+          <h2 class="section-title">Automated Exploratory Data Analysis</h2>
+          <span class="badge-eda-status">Full Profile Generated</span>
+        </div>
+        <div class="action-btn-group">
+          <button id="btnGoToCleanerFromEda" class="btn btn-primary" type="button" style="background-color: #1d4ed8; font-size: 0.85rem;">
+            &#9986; Open Cleaning Studio
+          </button>
+          <button id="btnGoToVisFromEda" class="btn btn-primary" type="button" style="background-color: #0284c7; font-size: 0.85rem;">
+            &#128202; Visualization Studio
+          </button>
+          <button id="btnGoToReportFromEda" class="btn btn-primary" type="button" style="background-color: #0f172a; font-size: 0.85rem;">
+            &#128196; Generate Report
+          </button>
+          <button id="btnScrollToTop" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+            &uarr; Back to Top
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. Dataset Overview Cards Grid -->
+      <div class="overview-grid" id="edaOverviewGrid">
+        <div class="stat-card">
+          <span class="stat-label">Total Observations</span>
+          <span id="edaTotalRows" class="stat-value">-</span>
+          <span class="stat-subtext" id="edaRowsSubtext">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Features</span>
+          <span id="edaTotalCols" class="stat-value">-</span>
+          <span class="stat-subtext" id="edaColsSubtext">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Memory Usage</span>
+          <span id="edaMemory" class="stat-value">-</span>
+          <span class="stat-subtext">In-memory DataFrame</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Missing Cells</span>
+          <span id="edaMissingPct" class="stat-value">-</span>
+          <span class="stat-subtext" id="edaMissingSubtext">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Duplicate Rows</span>
+          <span id="edaDuplicates" class="stat-value">-</span>
+          <span class="stat-subtext" id="edaDuplicatesSubtext">Preserved without removal</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Outliers Detected</span>
+          <span id="edaOutliersTotal" class="stat-value">-</span>
+          <span class="stat-subtext">IQR method (&plusmn;1.5 IQR)</span>
+        </div>
+      </div>
+
+      <!-- 2. Statistical Summary Card -->
+      <div class="card eda-card">
+        <div class="card-header-flex">
+          <div>
+            <h3 class="card-title">
+              <span class="card-title-icon">&#128202;</span>
+              Descriptive Statistics Summary
+            </h3>
+            <p class="card-body" style="margin-bottom: 0;">
+              Standard summary statistics computed via Pandas <code>describe()</code>.
+            </p>
+          </div>
+          <div class="tab-group">
+            <button id="btnTabNumStats" class="tab-btn active" type="button">Numerical Features</button>
+            <button id="btnTabCatStats" class="tab-btn" type="button">Categorical Features</button>
+          </div>
+        </div>
+
+        <!-- Numerical Stats Table -->
+        <div id="numericalStatsContainer" class="table-responsive" style="margin-top: 1.25rem;">
+          <table class="data-table" id="numericalStatsTable">
+            <thead id="numStatsHead"></thead>
+            <tbody id="numStatsBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Categorical Stats Table -->
+        <div id="categoricalStatsContainer" class="table-responsive" style="margin-top: 1.25rem; display: none;">
+          <table class="data-table" id="categoricalStatsTable">
+            <thead id="catStatsHead"></thead>
+            <tbody id="catStatsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. Missing Values & Duplicate Records Grid -->
+      <div class="two-col-grid">
+        <!-- Missing Values Card -->
+        <div class="card eda-card">
+          <h3 class="card-title">
+            <span class="card-title-icon">&#9888;</span>
+            Missing Values Breakdown
+          </h3>
+          <p class="card-body">
+            Missing count and percentage for every column in the dataset.
+          </p>
+          <div class="table-responsive" style="max-height: 350px;">
+            <table class="data-table" id="missingTable">
+              <thead>
+                <tr>
+                  <th>Column</th>
+                  <th>Missing Count</th>
+                  <th>Missing %</th>
+                  <th style="min-width: 120px;">Distribution</th>
+                </tr>
+              </thead>
+              <tbody id="missingTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Duplicate Records & Cardinality Card -->
+        <div class="card eda-card">
+          <h3 class="card-title">
+            <span class="card-title-icon">&#128065;</span>
+            Duplicate &amp; Cardinality Analysis
+          </h3>
+          <div id="duplicateStatusBanner" class="dup-banner">
+            <span id="dupBannerIcon" class="dup-icon">&#10003;</span>
+            <div>
+              <strong id="dupBannerTitle">No Duplicate Rows</strong>
+              <div id="dupBannerDesc" class="text-secondary" style="font-size: 0.85rem;">All records are distinct across features.</div>
+            </div>
+          </div>
+          <p class="card-body" style="margin-top: 1rem; margin-bottom: 0.5rem;">
+            Feature cardinality and distinct value profiles:
+          </p>
+          <div class="table-responsive" style="max-height: 250px;">
+            <table class="data-table" id="columnAnalysisTable">
+              <thead>
+                <tr>
+                  <th>Column</th>
+                  <th>Type</th>
+                  <th>Unique Count</th>
+                  <th>Distinct %</th>
+                </tr>
+              </thead>
+              <tbody id="columnAnalysisBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Outlier Analysis Card -->
+      <div class="card eda-card">
+        <h3 class="card-title">
+          <span class="card-title-icon">&#128308;</span>
+          Outlier Detection (IQR Method)
+        </h3>
+        <p class="card-body">
+          Numerical outliers identified outside the threshold bounds <span class="formula-badge">[Q<sub>1</sub> &minus; 1.5 &times; IQR, &nbsp; Q<sub>3</sub> + 1.5 &times; IQR]</span> where <span class="formula-badge">IQR = Q<sub>3</sub> &minus; Q<sub>1</sub></span>. Original data is strictly preserved.
+        </p>
+        <div class="table-responsive">
+          <table class="data-table" id="outliersTable">
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>First Quartile (25%)</th>
+                <th>Third Quartile (75%)</th>
+                <th>IQR</th>
+                <th>Normal Range Bounds</th>
+                <th>Outlier Count</th>
+                <th>Outlier %</th>
+                <th>Sample Outliers</th>
+              </tr>
+            </thead>
+            <tbody id="outliersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. Correlation Matrix Card -->
+      <div class="card eda-card">
+        <h3 class="card-title">
+          <span class="card-title-icon">&#9878;</span>
+          Pearson Correlation Matrix
+        </h3>
+        <p class="card-body" id="correlationSubtitle">
+          Pairwise linear correlation coefficients between numerical attributes.
+        </p>
+        <div id="correlationContainer" class="table-responsive">
+          <table class="data-table correlation-matrix-table" id="correlationTable">
+            <thead id="correlationHead"></thead>
+            <tbody id="correlationBody"></tbody>
+          </table>
+        </div>
+        <div id="topCorrelationsSection" style="margin-top: 1.5rem;">
+          <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem;">Strongest Pairwise Correlations:</h4>
+          <div id="topCorrelationsBadges" class="badges-row"></div>
+        </div>
+      </div>
+
+      <!-- 6. Column-wise Distribution Card -->
+      <div class="card eda-card">
+        <div class="card-header-flex">
+          <div>
+            <h3 class="card-title">
+              <span class="card-title-icon">&#128200;</span>
+              Column-wise Distribution Analysis
+            </h3>
+            <p class="card-body" style="margin-bottom: 0;">
+              Interactive frequency histograms for numerical features and bar distributions for categorical attributes.
+            </p>
+          </div>
+          <div class="chart-selector-wrapper">
+            <label for="selectDistColumn" class="select-label">Select Feature:</label>
+            <select id="selectDistColumn" class="custom-select"></select>
+          </div>
+        </div>
+
+        <div id="distFeatureDetails" style="margin-top: 1.25rem;">
+          <div class="dist-meta-bar" id="distMetaBar"></div>
+          <div class="chart-canvas-container" id="chartContainer"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 4: Data Cleaning & Preprocessing Studio Section -->
+    <section id="cleaningStudioSection" class="cleaning-studio" style="display: none;">
+      <div class="eda-section-header">
+        <div class="results-title-group">
+          <h2 class="section-title">Data Cleaning &amp; Preprocessing Studio</h2>
+          <span class="badge-studio-status">Interactive Studio</span>
+        </div>
+        <button id="btnScrollToPreview" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+          &uarr; Back to Inspection
+        </button>
+      </div>
+
+      <!-- Studio Layout: Left Controls, Right Active Pipeline -->
+      <div class="studio-grid">
+        <!-- Control Panels Accordion / Forms -->
+        <div class="studio-controls-column">
+          <!-- 1. Duplicate Handling Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#128465; Duplicate Rows</h3>
+            <p class="studio-card-subtitle">Detect and remove identical records from dataset.</p>
+            <div class="form-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="chkDropDuplicates" checked />
+                <span>Remove duplicate rows (preserve first occurrence)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. Missing Values Imputation Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#9888; Missing Values Imputation</h3>
+            <p class="studio-card-subtitle">Drop missing rows or fill with statistical aggregates or custom values.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="selectMissingCol">Target Column:</label>
+                <select id="selectMissingCol" class="custom-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="selectMissingStrategy">Strategy:</label>
+                <select id="selectMissingStrategy" class="custom-select">
+                  <option value="drop_rows">Drop Rows with Missing</option>
+                  <option value="mean">Fill with Mean (Numeric)</option>
+                  <option value="median">Fill with Median (Numeric)</option>
+                  <option value="mode">Fill with Mode (Frequent)</option>
+                  <option value="custom">Fill with Custom Value</option>
+                </select>
+              </div>
+              <div class="form-group" id="groupCustomMissingVal" style="display: none;">
+                <label for="inputCustomMissingVal">Custom Value:</label>
+                <input type="text" id="inputCustomMissingVal" class="custom-input" placeholder="e.g. 0, N/A, Unknown" />
+              </div>
+            </div>
+            <div style="margin-top: 0.75rem;">
+              <button id="btnAddMissingOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+                + Add Missing Treatment
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Data Type Conversion Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#128260; Data Type Casting</h3>
+            <p class="studio-card-subtitle">Cast features into integer, float, string, or datetime.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="selectTypeCol">Column:</label>
+                <select id="selectTypeCol" class="custom-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="selectTargetType">Target Type:</label>
+                <select id="selectTargetType" class="custom-select">
+                  <option value="integer">Integer (Nullable Int64)</option>
+                  <option value="float">Float (Floating Point)</option>
+                  <option value="string">String (Text)</option>
+                  <option value="datetime">Datetime (Date / Timestamp)</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top: 0.75rem;">
+              <button id="btnAddTypeOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+                + Add Type Conversion
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. Outlier Handling Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#128308; Outlier Treatment (IQR)</h3>
+            <p class="studio-card-subtitle">Cap or remove extreme values beyond 1.5x IQR.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="selectOutlierCol">Numerical Column:</label>
+                <select id="selectOutlierCol" class="custom-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="selectOutlierAction">Treatment:</label>
+                <select id="selectOutlierAction" class="custom-select">
+                  <option value="cap">Cap at IQR Bounds (Clip)</option>
+                  <option value="remove">Remove Outlier Rows</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top: 0.75rem;">
+              <button id="btnAddOutlierOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+                + Add Outlier Treatment
+              </button>
+            </div>
+          </div>
+
+          <!-- 5. Categorical Encoding Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#129528; Categorical Encoding</h3>
+            <p class="studio-card-subtitle">Convert text labels into numeric codes or binary indicator columns.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="selectEncodeCol">Categorical Column:</label>
+                <select id="selectEncodeCol" class="custom-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="selectEncodeMethod">Method:</label>
+                <select id="selectEncodeMethod" class="custom-select">
+                  <option value="label">Label Encoding (0..K-1)</option>
+                  <option value="one_hot">One-Hot Encoding (Dummies)</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top: 0.75rem;">
+              <button id="btnAddEncodeOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+                + Add Encoding Step
+              </button>
+            </div>
+          </div>
+
+          <!-- 6. Numerical Scaling Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#128207; Numerical Feature Scaling</h3>
+            <p class="studio-card-subtitle">Rescale numeric ranges for machine learning readiness.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="selectScaleCol">Numerical Column:</label>
+                <select id="selectScaleCol" class="custom-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="selectScaleMethod">Method:</label>
+                <select id="selectScaleMethod" class="custom-select">
+                  <option value="min_max">Min-Max Normalization [0, 1]</option>
+                  <option value="standardize">Standardization Z-Score (Mean=0, Std=1)</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top: 0.75rem;">
+              <button id="btnAddScaleOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+                + Add Scaling Step
+              </button>
+            </div>
+          </div>
+
+          <!-- 7. Column Management Card -->
+          <div class="card studio-card">
+            <h3 class="studio-card-title">&#9998; Column Management</h3>
+            <p class="studio-card-subtitle">Rename attributes or drop unneeded features.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="selectRenameCol">Column to Rename:</label>
+                <select id="selectRenameCol" class="custom-select"></select>
+              </div>
+              <div class="form-group">
+                <label for="inputNewColName">New Name:</label>
+                <input type="text" id="inputNewColName" class="custom-input" placeholder="e.g. customer_id" />
+              </div>
+            </div>
+            <div style="margin-top: 0.5rem; margin-bottom: 1rem;">
+              <button id="btnAddRenameOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+                + Add Rename
+              </button>
+            </div>
+
+            <div class="form-grid" style="border-top: 1px solid var(--border-color); padding-top: 0.85rem;">
+              <div class="form-group">
+                <label for="selectDropCol">Column to Remove:</label>
+                <select id="selectDropCol" class="custom-select"></select>
+              </div>
+              <div class="form-group" style="align-self: flex-end;">
+                <button id="btnAddDropOp" class="btn btn-secondary" type="button" style="font-size: 0.85rem; color: var(--status-red); border-color: var(--status-red-border);">
+                  &times; Remove Column
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Active Pipeline Queue & Actions -->
+        <div class="studio-pipeline-column">
+          <div class="card pipeline-card">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title">&#9776; Configured Cleaning Pipeline</h3>
+                <p class="card-body" style="margin-bottom: 0;">Operations will execute sequentially on the dataset.</p>
+              </div>
+              <span id="pipelineCountBadge" class="badge-eda-status">0 Operations</span>
+            </div>
+
+            <!-- Operations Queue List -->
+            <div id="pipelineList" class="pipeline-list">
+              <div class="empty-pipeline-msg">
+                No transformation steps added yet. Configure rules on the left or click "Preview Changes".
+              </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="pipeline-actions-bar">
+              <button id="btnPreviewClean" class="btn btn-primary" type="button" style="flex: 1;">
+                &#128065; Preview Changes (Before vs After)
+              </button>
+              <button id="btnClearPipeline" class="btn btn-secondary" type="button">
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          <!-- Clean Loading Spinner Card -->
+          <div id="cleanLoading" class="card analysis-loading-card" style="display: none; margin-top: 1rem;">
+            <div class="spinner"></div>
+            <div class="loading-text-group">
+              <h3 class="loading-title">Processing Transformations...</h3>
+              <p class="loading-subtitle">Applying data cleaning pipeline in-memory with Pandas.</p>
+            </div>
+          </div>
+
+          <!-- Before vs After Comparison Card (Appears after Preview) -->
+          <div id="cleanPreviewContainer" class="card clean-preview-card" style="display: none; margin-top: 1.5rem;">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title">&#9878; Before vs After Comparison</h3>
+                <p class="card-body" style="margin-bottom: 0;">Review impact metrics and preview records before committing changes.</p>
+              </div>
+              <div class="action-btn-group">
+                <button id="btnApplyCleaned" class="btn btn-primary" type="button" style="background-color: var(--status-green);">
+                  &#10003; Apply Changes
+                </button>
+              </div>
+            </div>
+
+            <!-- Diff Metrics -->
+            <div class="diff-metrics-grid" style="margin-top: 1.25rem;">
+              <div class="diff-card">
+                <span class="diff-label">Rows Impact</span>
+                <span id="diffRows" class="diff-value">-</span>
+                <span id="diffRowsSub" class="diff-subtext">-</span>
+              </div>
+              <div class="diff-card">
+                <span class="diff-label">Columns Impact</span>
+                <span id="diffCols" class="diff-value">-</span>
+                <span id="diffColsSub" class="diff-subtext">-</span>
+              </div>
+              <div class="diff-card">
+                <span class="diff-label">Steps Executed</span>
+                <span id="diffOpsCount" class="diff-value">-</span>
+                <span class="diff-subtext">Without modifying original</span>
+              </div>
+            </div>
+
+            <!-- Applied Operations Log -->
+            <div style="margin-top: 1.25rem;">
+              <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">Operations Execution Log:</h4>
+              <ul id="operationsLogList" class="operations-log-list"></ul>
+            </div>
+
+            <!-- Before vs After Tabs -->
+            <div style="margin-top: 1.25rem;">
+              <div class="tab-group" style="margin-bottom: 0.75rem;">
+                <button id="btnTabCleanedPreview" class="tab-btn active" type="button">Cleaned Preview (After)</button>
+                <button id="btnTabOriginalPreview" class="tab-btn" type="button">Original Preview (Before)</button>
+              </div>
+
+              <!-- Cleaned Preview Table -->
+              <div id="cleanedTableContainer" class="table-responsive">
+                <table class="data-table">
+                  <thead id="cleanedTableHead"></thead>
+                  <tbody id="cleanedTableBody"></tbody>
+                </table>
+              </div>
+
+              <!-- Original Preview Table -->
+              <div id="originalTableContainer" class="table-responsive" style="display: none;">
+                <table class="data-table">
+                  <thead id="originalTableHead"></thead>
+                  <tbody id="originalTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Download Export Area -->
+            <div class="download-bar">
+              <div>
+                <strong style="color: var(--text-primary); font-size: 0.95rem;">Download Cleaned Dataset:</strong>
+                <div class="text-secondary" style="font-size: 0.82rem;">Generated securely in-memory. Choose format below:</div>
+              </div>
+              <div class="action-btn-group">
+                <button id="btnDownloadCsv" class="btn btn-primary" type="button">
+                  &#128190; Download CSV
+                </button>
+                <button id="btnDownloadXlsx" class="btn btn-secondary" type="button">
+                  &#128190; Download Excel (.xlsx)
+                </button>
+                <button id="btnDownloadJson" class="btn btn-secondary" type="button" style="background-color: #0f172a; color: white;">
+                  &#128190; Download JSON (.json)
+                </button>
+                <button id="btnGoToVisFromCleaner" class="btn btn-primary" type="button" style="background-color: #0284c7;">
+                  &#128202; Visualize in Studio &rarr;
+                </button>
+                <button id="btnGoToReportFromCleaner" class="btn btn-primary" type="button" style="background-color: #0f172a;">
+                  &#128196; Generate Report &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Data Visualization Studio Section (Phase 5) -->
+    <section id="visualizationStudioSection" class="visualization-studio" style="display: none; margin-top: 2rem;">
+      <div class="vis-section-header">
+        <div class="results-title-group">
+          <h2 class="section-title">
+            <span class="section-title-icon">&#128202;</span>
+            Interactive Data Visualization Studio
+          </h2>
+          <span class="preview-badge" style="background-color: #0284c7; color: #ffffff;">Phase 5 Active</span>
+        </div>
+        <div class="action-btn-group">
+          <button id="btnVisScrollToCleaning" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+            &#9986; Cleaning Studio
+          </button>
+          <button id="btnGoToReportFromVis" class="btn btn-primary" type="button" style="background-color: #0f172a; font-size: 0.85rem;">
+            &#128196; Generate Report &rarr;
+          </button>
+          <button id="btnVisScrollToTop" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+            &uarr; Back to Top
+          </button>
+        </div>
+      </div>
+
+      <!-- Dataset Source Switcher Card -->
+      <div class="card vis-source-card" style="margin-top: 1rem;">
+        <div class="source-switcher-container">
+          <div class="source-switcher-label">
+            <strong>Active Dataset Source:</strong>
+            <span class="text-secondary" style="font-size: 0.85rem;">Select which dataset to visualize</span>
+          </div>
+          <div class="source-pills-group">
+            <button id="btnSourceOriginal" class="source-pill active" type="button">
+              <span class="source-pill-dot"></span>
+              <span id="labelSourceOriginal">Original Dataset</span>
+            </button>
+            <button id="btnSourceCleaned" class="source-pill disabled" type="button" disabled title="Apply or download a cleaned dataset in Cleaning Studio first">
+              <span class="source-pill-dot"></span>
+              <span id="labelSourceCleaned">Cleaned Dataset (None)</span>
+            </button>
+          </div>
+        </div>
+        <div id="activeSourceInfo" class="source-info-subtext" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+          Currently plotting from: <strong>Original Dataset</strong> (<span id="activeSourceDetails">-</span>)
+        </div>
+      </div>
+
+      <!-- Chart Builder Configuration Card -->
+      <div class="card vis-builder-card" style="margin-top: 1.25rem;">
+        <div class="card-header-flex">
+          <h3 class="card-title">
+            <span class="card-title-icon">&#9881;</span>
+            Chart Builder &amp; Parameters
+          </h3>
+          <span class="text-muted" style="font-size: 0.85rem;">Select chart type and dynamic feature axes</span>
+        </div>
+
+        <div class="vis-controls-grid" style="margin-top: 1rem;">
+          <!-- Chart Type -->
+          <div class="form-group">
+            <label for="visChartType" class="form-label">
+              Chart Type: <span class="required-star">*</span>
+            </label>
+            <select id="visChartType" class="form-select">
+              <option value="bar">Bar Chart (Category Comparison)</option>
+              <option value="line">Line Chart (Trend / Sequence)</option>
+              <option value="pie">Pie Chart (Proportions)</option>
+              <option value="donut">Donut Chart (Ring Proportions)</option>
+              <option value="histogram">Histogram (Distribution)</option>
+              <option value="scatter">Scatter Plot (2 Numerical Features)</option>
+              <option value="box">Box Plot (Quartiles &amp; Outliers)</option>
+              <option value="heatmap">Correlation Heatmap (Matrix)</option>
+            </select>
+          </div>
+
+          <!-- X-Axis Column -->
+          <div class="form-group" id="groupVisXCol">
+            <label for="visXCol" id="lblVisXCol" class="form-label">
+              X-Axis / Category: <span class="required-star">*</span>
+            </label>
+            <select id="visXCol" class="form-select">
+              <option value="">-- Select Column --</option>
+            </select>
+          </div>
+
+          <!-- Y-Axis Column -->
+          <div class="form-group" id="groupVisYCol">
+            <label for="visYCol" id="lblVisYCol" class="form-label">
+              Y-Axis / Metric:
+            </label>
+            <select id="visYCol" class="form-select">
+              <option value="">-- None (Count only) --</option>
+            </select>
+          </div>
+
+          <!-- Aggregation Method -->
+          <div class="form-group" id="groupVisAggregation">
+            <label for="visAggregation" id="lblVisAggregation" class="form-label">
+              Aggregation:
+            </label>
+            <select id="visAggregation" class="form-select">
+              <option value="count">Count (Frequency)</option>
+              <option value="mean">Mean (Average)</option>
+              <option value="sum">Sum (Total)</option>
+              <option value="median">Median</option>
+            </select>
+          </div>
+
+          <!-- Chart Title -->
+          <div class="form-group form-group-span-2">
+            <label for="visChartTitle" class="form-label">
+              Custom Chart Title (Optional):
+            </label>
+            <input
+              type="text"
+              id="visChartTitle"
+              class="form-input"
+              placeholder="e.g. Total Revenue by Department (North Region)"
+            />
+          </div>
+        </div>
+
+        <!-- Heatmap Info Banner -->
+        <div id="visHeatmapNotice" class="alert alert-info" style="display: none; margin-top: 1rem; padding: 0.75rem 1rem; background-color: var(--accent-blue-light); border: 1px solid var(--accent-blue-border); border-radius: var(--radius-sm); color: var(--accent-blue-hover); font-size: 0.88rem;">
+          &#9432; <strong>Correlation Heatmap Mode:</strong> Automatically calculates pairwise Pearson correlation across all numerical columns in the selected dataset. Individual X/Y axis selection is omitted.
+        </div>
+
+        <!-- Visualization Studio Local Error Alert Banner (Preserves Studio Scroll Position) -->
+        <div id="visErrorAlert" class="alert alert-error" style="display: none; margin-top: 1rem;" role="alert">
+          <div class="alert-content">
+            <span class="alert-icon">&#9888;</span>
+            <span id="visErrorMessage" class="alert-text">An error occurred.</span>
+          </div>
+          <button id="btnDismissVisError" class="btn-icon" type="button" aria-label="Dismiss error">&times;</button>
+        </div>
+
+        <!-- Builder Actions -->
+        <div class="vis-builder-actions" style="margin-top: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; gap: 0.75rem;">
+            <button id="btnGenerateChart" class="btn btn-primary" type="button" style="background-color: #0284c7;">
+              <span class="btn-icon-symbol">&#10010;</span> Generate &amp; Add Chart
+            </button>
+            <button id="btnResetVisControls" class="btn btn-secondary" type="button">
+              Reset Controls
+            </button>
+          </div>
+          <div id="visLoadingIndicator" style="display: none; align-items: center; gap: 0.5rem; color: var(--accent-blue); font-size: 0.88rem; font-weight: 500;">
+            <div class="spinner" style="width: 18px; height: 18px; border-width: 2px;"></div>
+            <span>Generating chart payload...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Visualizations Container -->
+      <div class="card vis-dashboard-card" style="margin-top: 1.5rem;">
+        <div class="card-header-flex">
+          <div>
+            <h3 class="card-title">
+              <span class="card-title-icon">&#128195;</span>
+              Dashboard Visualizations
+              <span id="dashboardCountBadge" class="preview-badge" style="margin-left: 0.5rem; background-color: #0284c7; color: white;">0 Charts</span>
+            </h3>
+            <p class="card-body" style="margin-bottom: 0;">Multi-chart dashboard. Charts remain interactive with hover inspection, individual PNG export, and real-time removal.</p>
+          </div>
+          <div class="action-btn-group">
+            <button id="btnRegenerateAllCharts" class="btn btn-secondary" type="button" style="display: none; font-size: 0.85rem;">
+              &#8635; Regenerate on Current Dataset
+            </button>
+            <button id="btnDownloadAllCharts" class="btn btn-primary" type="button" style="display: none; font-size: 0.85rem; background-color: #0284c7;">
+              &#128247; Download All Charts (PNG)
+            </button>
+            <button id="btnClearDashboard" class="btn btn-secondary" type="button" style="display: none; font-size: 0.85rem;">
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="visEmptyState" class="vis-empty-state" style="padding: 3rem 1.5rem; text-align: center; border: 2px dashed var(--border-color); border-radius: var(--radius-md); margin-top: 1.25rem; background-color: var(--bg-secondary);">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--accent-blue);">&#128200;</div>
+          <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.35rem;">No Charts Added Yet</h4>
+          <p style="color: var(--text-secondary); max-width: 480px; margin: 0 auto; font-size: 0.9rem;">
+            Select a chart type and target columns above, then click <strong>"Generate &amp; Add Chart"</strong> to populate your interactive analytical dashboard.
+          </p>
+        </div>
+
+        <!-- Dynamic Multi-Chart Grid -->
+        <div id="chartsDashboardGrid" class="charts-dashboard-grid" style="margin-top: 1.25rem;"></div>
+      </div>
+    </section>
+
+    <!-- Automated EDA Report Generation Studio Section (Phase 6) -->
+    <section id="reportStudioSection" class="report-studio" style="display: none; margin-top: 2rem;">
+      <div class="report-section-header">
+        <div class="results-title-group">
+          <h2 class="section-title">
+            <span class="section-title-icon">&#128196;</span>
+            Automated EDA Report Generation Studio
+          </h2>
+          <span class="preview-badge" style="background-color: #0284c7; color: #ffffff;">Phase 6 Active</span>
+        </div>
+        <div class="action-btn-group">
+          <button id="btnReportScrollToVis" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+            &#128202; Visualization Studio
+          </button>
+          <button id="btnReportScrollToCleaning" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+            &#9986; Cleaning Studio
+          </button>
+          <button id="btnReportScrollToTop" class="btn btn-secondary" type="button" style="font-size: 0.85rem;">
+            &uarr; Back to Top
+          </button>
+        </div>
+      </div>
+
+      <!-- Dataset Source Switcher Card -->
+      <div class="card report-source-card" style="margin-top: 1rem;">
+        <div class="source-switcher-container">
+          <div class="source-switcher-label">
+            <strong>Target Dataset Scope:</strong>
+            <span class="text-secondary" style="font-size: 0.85rem;">Select which dataset scope to compile into the formal PDF report</span>
+          </div>
+          <div class="source-pills-group">
+            <button id="btnReportSourceOriginal" class="source-pill active" type="button">
+              <span class="source-pill-dot"></span>
+              <span id="labelReportSourceOriginal">Original Dataset</span>
+            </button>
+            <button id="btnReportSourceCleaned" class="source-pill disabled" type="button" disabled title="Apply or download a cleaned dataset in Cleaning Studio first">
+              <span class="source-pill-dot"></span>
+              <span id="labelReportSourceCleaned">Cleaned Dataset (None)</span>
+            </button>
+          </div>
+        </div>
+        <div id="activeReportSourceInfo" class="source-info-subtext" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+          Currently compiling report for: <strong>Original Dataset</strong> (<span id="activeReportSourceDetails">-</span>)
+        </div>
+      </div>
+
+      <!-- Report Specification & Checklist Card -->
+      <div class="card report-builder-card" style="margin-top: 1.25rem;">
+        <div class="card-header-flex">
+          <h3 class="card-title">
+            <span class="card-title-icon">&#9881;</span>
+            PDF Report Contents &amp; Modular Sections
+          </h3>
+          <span class="text-muted" style="font-size: 0.85rem;">Publication-grade audit document with ReportLab &amp; Matplotlib</span>
+        </div>
+
+        <p class="card-body" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+          The generated PDF report compiles an academic and business-ready audit incorporating the 10 formal analysis modules below:
+        </p>
+
+        <!-- Checklist Grid -->
+        <div class="report-checklist-grid">
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>1. Professional Cover Page</strong>
+              <p>Data Detective branding, timestamp, dataset dimensions, and security storage policy.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>2. Executive Summary &amp; Key Findings</strong>
+              <p>Factual, mathematically grounded observations derived strictly from computed distributions.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>3. Dataset Overview &amp; Schema</strong>
+              <p>Row counts, feature classifications, memory footprint, and column data types.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>4. Statistical Profiling Summaries</strong>
+              <p>Numerical (mean, std, min, Q1, median, Q3, max) and categorical (mode, frequency, dominance).</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>5. Data Quality &amp; Cleanliness Audit</strong>
+              <p>Column-wise missingness percentages, completeness health, and duplicate row detection.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>6. Outlier Analysis (IQR Method)</strong>
+              <p>Tukey IQR boundaries, first and third quartiles, outlier observation counts and rates.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>7. Correlation Analysis &amp; Heatmap</strong>
+              <p>Pairwise Pearson correlation matrix and high-resolution embedded heatmap figure.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>8. Embedded Empirical Charts</strong>
+              <p>Feature distribution histograms, categorical bar charts, and box plots from actual records.</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>9. Cleaning History &amp; Audit Log</strong>
+              <p>Sequential log of executed operations (missing imputations, deduplications, scaling).</p>
+            </div>
+          </div>
+          <div class="report-check-item">
+            <span class="check-icon">&#10004;</span>
+            <div>
+              <strong>10. Before vs. After Comparative Table</strong>
+              <p>Side-by-side metric comparison demonstrating net dimensional and cleanliness delta (&Delta;).</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local Error Alert Banner -->
+        <div id="reportErrorAlert" class="alert alert-error" style="display: none; margin-top: 1.25rem;" role="alert">
+          <div class="alert-content">
+            <span class="alert-icon">&#9888;</span>
+            <span id="reportErrorMessage" class="alert-text">An error occurred.</span>
+          </div>
+          <button id="btnDismissReportError" class="btn-icon" type="button" aria-label="Dismiss error">&times;</button>
+        </div>
+
+        <!-- Local Success Banner -->
+        <div id="reportSuccessAlert" class="alert alert-success" style="display: none; margin-top: 1.25rem; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 0.75rem 1rem; border-radius: var(--radius-sm); align-items: center; justify-content: space-between;" role="alert">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.1rem; color: #16a34a;">&#10004;</span>
+            <span id="reportSuccessMessage" style="font-size: 0.9rem; font-weight: 500;">
+              EDA Report compiled successfully! Your PDF download has started automatically.
+            </span>
+          </div>
+          <button id="btnDismissReportSuccess" class="btn-icon" type="button" aria-label="Dismiss message" style="color: #166534;">&times;</button>
+        </div>
+
+        <!-- Actions -->
+        <div class="report-actions" style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button id="btnGenerateReport" class="btn btn-primary" type="button" style="background-color: #0284c7; padding: 0.65rem 1.25rem; font-size: 0.95rem;">
+              <span class="btn-icon-symbol">&#128196;</span> Generate &amp; Download PDF Report
+            </button>
+            <button id="btnDownloadReportAgain" class="btn btn-secondary" type="button" style="display: none;">
+              &#128190; Download Generated PDF Again
+            </button>
+          </div>
+          <div id="reportLoadingIndicator" style="display: none; align-items: center; gap: 0.5rem; color: var(--accent-blue); font-size: 0.88rem; font-weight: 500;">
+            <div class="spinner" style="width: 18px; height: 18px; border-width: 2px;"></div>
+            <span id="reportLoadingText">Compiling PDF report &amp; generating chart figures...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- System Status & Diagnostics Section (Phase 1 retained) -->
+    <section class="card diagnostics-card" style="margin-top: 2rem;">
+      <div class="card-header-flex">
+        <h2 class="card-title">
+          <span class="card-title-icon">&#9881;</span>
+          System Status &amp; Diagnostics
+        </h2>
+        <div>
+          <button id="btnCheckHealth" class="btn btn-secondary" type="button" style="padding: 0.35rem 0.85rem; font-size: 0.85rem;">
+            Check Backend
+          </button>
+          <a id="apiDocsLink" href="http://127.0.0.1:8000/docs" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding: 0.35rem 0.85rem; font-size: 0.85rem;">
+            Swagger Docs &rarr;
+          </a>
+        </div>
+      </div>
+      <ul class="info-list" style="margin-top: 1rem; margin-bottom: 1rem;">
+        <li class="info-item">
+          <span class="info-label">API Server URL</span>
+          <span class="info-value" id="apiServerUrl">http://127.0.0.1:8000</span>
+        </li>
+        <li class="info-item">
+          <span class="info-label">Health Status</span>
+          <span class="info-value" id="healthStatusValue">Checking...</span>
+        </li>
+        <li class="info-item">
+          <span class="info-label">API Root Message</span>
+          <span class="info-value" id="apiRootMessage">-</span>
+        </li>
+      </ul>
+      <div id="diagnosticsOutput" class="diagnostics-box">Ready. Backend connectivity checking...</div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Data Detective &bull; Lightweight Exploratory Data Analysis &amp; Data Cleaning Studio</p>
+  </footer>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

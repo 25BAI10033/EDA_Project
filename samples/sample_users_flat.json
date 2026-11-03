@@ -1,0 +1,83 @@
+[
+  {
+    "user_id": 101,
+    "name": "Alice Johnson",
+    "age": 28,
+    "department": "Engineering",
+    "salary": 95000.0,
+    "is_active": true,
+    "bonus": 5000.0
+  },
+  {
+    "user_id": 102,
+    "name": "Bob Smith",
+    "age": 35,
+    "department": "Marketing",
+    "salary": 72000.0,
+    "is_active": true,
+    "bonus": null
+  },
+  {
+    "user_id": 103,
+    "name": "Carol Danvers",
+    "age": 42,
+    "department": "Engineering",
+    "salary": 115000.0,
+    "is_active": false,
+    "bonus": 8500.0
+  },
+  {
+    "user_id": 104,
+    "name": "David Miller",
+    "age": null,
+    "department": "Sales",
+    "salary": 68000.0,
+    "is_active": true,
+    "bonus": 3000.0
+  },
+  {
+    "user_id": 105,
+    "name": "Emma Watson",
+    "age": 31,
+    "department": "Engineering",
+    "salary": 102000.0,
+    "is_active": true,
+    "bonus": 6200.0
+  },
+  {
+    "user_id": 106,
+    "name": "Frank Castle",
+    "age": 45,
+    "department": "Finance",
+    "salary": 88000.0,
+    "is_active": false,
+    "bonus": null
+  },
+  {
+    "user_id": 107,
+    "name": "Grace Hopper",
+    "age": 29,
+    "department": "Marketing",
+    "salary": 76000.0,
+    "is_active": true,
+    "bonus": 4100.0
+  },
+  {
+    "user_id": 108,
+    "name": "Henry Ford",
+    "age": 52,
+    "department": "Finance",
+    "salary": 130000.0,
+    "is_active": true,
+    "bonus": 12000.0
+  },
+  {
+    "user_id": 108,
+    "name": "Henry Ford",
+    "age": 52,
+    "department": "Finance",
+    "salary": 130000.0,
+    "is_active": true,
+    "bonus": 12000.0
+  }
+]

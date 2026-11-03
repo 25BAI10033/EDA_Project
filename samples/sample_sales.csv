@@ -1,0 +1,9 @@
+Transaction_ID,Customer_Name,Category,Price,Quantity,Discount_Code
+1001,Alice Smith,Electronics,299.99,1,SAVE10
+1002,Bob Jones,Home & Kitchen,45.5,3,
+1003,Charlie Brown,Electronics,1299.0,1,VIP20
+1004,Diana Prince,Books,19.99,4,
+1005,Evan Wright,Toys,34.25,2,SUMMER
+1006,Fiona Gallagher,Books,12.5,1,
+1007,George Clark,Home & Kitchen,89.9,2,
+1008,Hannah Abbott,Electronics,499.0,1,TECH50

@@ -1,0 +1,6 @@
+{"event_id": "EVT-1", "user": "userA", "action": "login", "response_ms": 120, "success": true}
+{"event_id": "EVT-2", "user": "userB", "action": "search", "response_ms": 250, "success": true}
+{"event_id": "EVT-3", "user": "userC", "action": "checkout", "response_ms": 480, "success": false}
+{"event_id": "EVT-4", "user": "userA", "action": "view_item", "response_ms": 85, "success": true}
+{"event_id": "EVT-5", "user": "userD", "action": "search", "response_ms": 310, "success": true}
+{"event_id": "EVT-6", "user": "userB", "action": "checkout", "response_ms": 520, "success": true}

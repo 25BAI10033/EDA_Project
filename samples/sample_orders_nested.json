@@ -1,0 +1,114 @@
+[
+  {
+    "order_id": "ORD-1001",
+    "customer": {
+      "name": "Tech Corp",
+      "city": "San Francisco",
+      "tier": "Enterprise"
+    },
+    "product": {
+      "sku": "LAP-01",
+      "category": "Laptops",
+      "price": 1499.99
+    },
+    "quantity": 5,
+    "discount": 0.1,
+    "features": [
+      "16GB RAM",
+      "1TB SSD"
+    ]
+  },
+  {
+    "order_id": "ORD-1002",
+    "customer": {
+      "name": "InnoSoft",
+      "city": "Austin",
+      "tier": "Startup"
+    },
+    "product": {
+      "sku": "MON-02",
+      "category": "Monitors",
+      "price": 399.5
+    },
+    "quantity": 10,
+    "discount": 0.05,
+    "features": [
+      "4K UHD",
+      "IPS"
+    ]
+  },
+  {
+    "order_id": "ORD-1003",
+    "customer": {
+      "name": "Apex Global",
+      "city": "New York",
+      "tier": "Enterprise"
+    },
+    "product": {
+      "sku": "ACC-03",
+      "category": "Accessories",
+      "price": 49.99
+    },
+    "quantity": 25,
+    "discount": null,
+    "features": [
+      "Wireless",
+      "Ergonomic"
+    ]
+  },
+  {
+    "order_id": "ORD-1004",
+    "customer": {
+      "name": "Beta Labs",
+      "city": "Seattle",
+      "tier": "Mid-Market"
+    },
+    "product": {
+      "sku": "LAP-02",
+      "category": "Laptops",
+      "price": 1299.0
+    },
+    "quantity": 3,
+    "discount": 0.15,
+    "features": [
+      "32GB RAM",
+      "M2"
+    ]
+  },
+  {
+    "order_id": "ORD-1005",
+    "customer": {
+      "name": "DataFlow Inc",
+      "city": "Chicago",
+      "tier": "Startup"
+    },
+    "product": {
+      "sku": "MON-01",
+      "category": "Monitors",
+      "price": 289.0
+    },
+    "quantity": 8,
+    "discount": 0.0,
+    "features": [
+      "144Hz"
+    ]
+  },
+  {
+    "order_id": "ORD-1006",
+    "customer": {
+      "name": "Alpha Solutions",
+      "city": "Austin",
+      "tier": "Mid-Market"
+    },
+    "product": {
+      "sku": "ACC-01",
+      "category": "Accessories",
+      "price": 89.95
+    },
+    "quantity": 15,
+    "discount": 0.2,
+    "features": [
+      "Mechanical"
+    ]
+  }
+]
