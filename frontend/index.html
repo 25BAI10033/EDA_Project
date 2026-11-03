@@ -26,7 +26,7 @@
   <main class="main-content">
     <!-- Hero / Intro -->
     <section class="hero">
-      <span class="hero-pill">Phase 6: Automated EDA Report Generation</span>
+      <span class="hero-pill">COMPLETE DATA ANALYSIS PLATFORM</span>
       <h1 class="hero-title">Data <span class="highlight">Detective</span></h1>
       <p class="hero-description">
         End-to-end platform for Exploratory Data Analysis (EDA), interactive data cleaning, dynamic visualization dashboards, and publication-ready automated PDF report generation. Inspect datasets, analyze distributions, impute missing values, cap outliers, scale features, build multi-chart analytical dashboards, and compile comprehensive audit reports.
@@ -1134,7 +1134,7 @@
       <ul class="info-list" style="margin-top: 1rem; margin-bottom: 1rem;">
         <li class="info-item">
           <span class="info-label">API Server URL</span>
-          <span class="info-value" id="apiServerUrl">http://127.0.0.1:8000</span>
+          <span class="info-value" id="apiServerUrl">-</span>
         </li>
         <li class="info-item">
           <span class="info-label">Health Status</span>
@@ -1145,6 +1145,32 @@
           <span class="info-value" id="apiRootMessage">-</span>
         </li>
       </ul>
+
+      <!-- Backend URL Configuration -->
+      <div id="backendConfigBox" style="margin-top: 1rem; margin-bottom: 1rem; padding: 0.85rem; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+        <label for="inputBackendUrl" style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem;">
+          FastAPI Backend API URL:
+        </label>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <input
+            type="url"
+            id="inputBackendUrl"
+            class="custom-input"
+            placeholder="e.g. https://your-fastapi-backend.onrender.com"
+            style="flex: 1; min-width: 240px; font-size: 0.85rem;"
+          />
+          <button id="btnSaveBackendUrl" class="btn btn-primary" type="button" style="padding: 0.4rem 0.85rem; font-size: 0.85rem;">
+            Save &amp; Connect
+          </button>
+          <button id="btnResetBackendUrl" class="btn btn-secondary" type="button" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;">
+            Reset
+          </button>
+        </div>
+        <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.35rem; margin-bottom: 0;">
+          Configured via <code>js/config.js</code> or saved in local browser storage. Never defaults to the Vercel frontend host.
+        </p>
+      </div>
+
       <div id="diagnosticsOutput" class="diagnostics-box">Ready. Backend connectivity checking...</div>
     </section>
   </main>
@@ -1154,6 +1180,7 @@
     <p>Data Detective &bull; Lightweight Exploratory Data Analysis &amp; Data Cleaning Studio</p>
   </footer>
 
+  <script src="js/config.js"></script>
   <script src="js/script.js"></script>
 </body>
 </html>

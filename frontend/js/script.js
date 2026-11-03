@@ -4,22 +4,75 @@
  * Interactive Visualization Studio, Automated Report Generation, and Multi-Format Exports.
  */
 
-// Production-ready dynamic API Base URL resolution
-const API_BASE_URL = (() => {
-  if (typeof window !== "undefined" && window.DATA_DETECTIVE_API_URL) {
-    return window.DATA_DETECTIVE_API_URL;
+/**
+ * Configurable FastAPI Backend URL resolution.
+ *
+ * Precedence:
+ * 1. window.DATA_DETECTIVE_CONFIG?.API_BASE_URL (from js/config.js or build-time configuration)
+ * 2. window.DATA_DETECTIVE_API_URL or window.API_BASE_URL
+ * 3. HTML meta tag: <meta name="api-base-url" content="...">
+ * 4. Browser localStorage: "DATA_DETECTIVE_API_URL" or "API_BASE_URL"
+ * 5. Localhost fallback: "http://127.0.0.1:8000" ONLY when running on localhost / 127.0.0.1
+ * 6. Cloud/Vercel deployment: NEVER defaults to window.location.origin! Returns null when missing.
+ */
+function getApiBaseUrl() {
+  if (typeof window !== "undefined" && window.DATA_DETECTIVE_CONFIG && window.DATA_DETECTIVE_CONFIG.API_BASE_URL) {
+    const raw = String(window.DATA_DETECTIVE_CONFIG.API_BASE_URL).trim().replace(/\/+$/, "");
+    if (raw) return raw;
   }
-  try {
-    const stored = window.localStorage.getItem("DATA_DETECTIVE_API_URL");
-    if (stored) return stored;
-  } catch (e) {}
-  if (typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http")) {
-    if (window.location.port === "8000" || window.location.port === "" || window.location.port === "443" || window.location.port === "80") {
-      return window.location.origin;
+  if (typeof window !== "undefined" && window.DATA_DETECTIVE_API_URL) {
+    const raw = String(window.DATA_DETECTIVE_API_URL).trim().replace(/\/+$/, "");
+    if (raw) return raw;
+  }
+  if (typeof window !== "undefined" && window.API_BASE_URL && typeof window.API_BASE_URL === "string") {
+    const raw = String(window.API_BASE_URL).trim().replace(/\/+$/, "");
+    if (raw) return raw;
+  }
+  if (typeof document !== "undefined") {
+    const metaTag = document.querySelector('meta[name="api-base-url"]');
+    if (metaTag && metaTag.content && metaTag.content.trim()) {
+      return metaTag.content.trim().replace(/\/+$/, "");
     }
   }
-  return "http://127.0.0.1:8000";
-})();
+  try {
+    const stored = window.localStorage.getItem("DATA_DETECTIVE_API_URL") || window.localStorage.getItem("API_BASE_URL");
+    if (stored && stored.trim()) {
+      return stored.trim().replace(/\/+$/, "");
+    }
+  } catch (e) {}
+
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
+      return "http://127.0.0.1:8000";
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Validate that the backend URL is configured before initiating data requests.
+ * If unconfigured, shows a clear error and smoothly scrolls to the diagnostics configuration box.
+ */
+function checkBackendConfigured() {
+  const url = getApiBaseUrl();
+  if (!url) {
+    const isVercel = typeof window !== "undefined" && window.location && window.location.hostname.includes("vercel.app");
+    const deployName = isVercel ? "Vercel deployment" : "remote deployment";
+    showError(`FastAPI Backend URL is not configured for this ${deployName}. Please configure your backend URL in the System Status & Diagnostics section below.`);
+    const diagSection = document.querySelector(".diagnostics-card");
+    if (diagSection) {
+      diagSection.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const inputUrl = document.getElementById("inputBackendUrl");
+    if (inputUrl) {
+      inputUrl.focus();
+    }
+    return null;
+  }
+  return url;
+}
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".json", ".jsonl", ".ndjson"];
@@ -50,10 +103,9 @@ const diagnosticsOutput = document.getElementById("diagnosticsOutput");
 const btnCheckHealth = document.getElementById("btnCheckHealth");
 const apiServerUrl = document.getElementById("apiServerUrl");
 const apiDocsLink = document.getElementById("apiDocsLink");
-
-// Synchronize footer diagnostics with active API base URL
-if (apiServerUrl) apiServerUrl.textContent = API_BASE_URL;
-if (apiDocsLink) apiDocsLink.href = `${API_BASE_URL}/docs`;
+const inputBackendUrl = document.getElementById("inputBackendUrl");
+const btnSaveBackendUrl = document.getElementById("btnSaveBackendUrl");
+const btnResetBackendUrl = document.getElementById("btnResetBackendUrl");
 
 // DOM Elements - Alerts
 const errorAlert = document.getElementById("errorAlert");
@@ -282,12 +334,23 @@ let lastGeneratedReportFileName = null;
  * 1. Backend Connectivity & Health Check (Phase 1)
  * ------------------------------------------------------------- */
 async function checkBackendHealth() {
-  setLoadingHealthState();
+  const currentBaseUrl = getApiBaseUrl();
+
+  if (inputBackendUrl && currentBaseUrl) {
+    inputBackendUrl.value = currentBaseUrl;
+  }
+
+  if (!currentBaseUrl) {
+    setUnconfiguredHealthState();
+    return;
+  }
+
+  setLoadingHealthState(currentBaseUrl);
 
   try {
     const startTime = performance.now();
 
-    const healthResponse = await fetch(`${API_BASE_URL}/health`, {
+    const healthResponse = await fetch(`${currentBaseUrl}/health`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -298,7 +361,7 @@ async function checkBackendHealth() {
 
     const healthData = await healthResponse.json();
 
-    const rootResponse = await fetch(`${API_BASE_URL}/`, {
+    const rootResponse = await fetch(`${currentBaseUrl}/`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
@@ -306,13 +369,47 @@ async function checkBackendHealth() {
     const rootData = rootResponse.ok ? await rootResponse.json() : null;
     const durationMs = Math.round(performance.now() - startTime);
 
-    setHealthyHealthState(healthData, rootData, durationMs);
+    setHealthyHealthState(healthData, rootData, durationMs, currentBaseUrl);
   } catch (error) {
-    setUnhealthyHealthState(error.message);
+    setUnhealthyHealthState(error.message, currentBaseUrl);
   }
 }
 
-function setLoadingHealthState() {
+function setUnconfiguredHealthState() {
+  if (statusBadge) {
+    statusBadge.className = "badge-status unhealthy";
+    statusText.textContent = "Backend: Not Configured";
+  }
+  if (healthStatusValue) {
+    healthStatusValue.textContent = "Missing Configuration";
+  }
+  if (apiRootMessage) {
+    apiRootMessage.textContent = "No backend URL set";
+  }
+  if (apiServerUrl) {
+    apiServerUrl.textContent = "Not Configured (Missing API_BASE_URL)";
+    apiServerUrl.style.color = "var(--status-red)";
+  }
+  if (apiDocsLink) {
+    apiDocsLink.removeAttribute("href");
+    apiDocsLink.style.pointerEvents = "none";
+    apiDocsLink.style.opacity = "0.5";
+    apiDocsLink.title = "Configure backend URL to view Swagger docs";
+  }
+  if (diagnosticsOutput) {
+    const origin = typeof window !== "undefined" && window.location ? window.location.origin : "unknown host";
+    diagnosticsOutput.textContent =
+      `[${new Date().toISOString()}] Configuration Notice:\n` +
+      `No FastAPI backend URL is configured for this deployment.\n\n` +
+      `Frontend Origin: ${origin}\n` +
+      `The frontend will never attempt to call the Vercel frontend URL as the FastAPI backend.\n\n` +
+      `How to connect your backend:\n` +
+      `1. Enter your deployed FastAPI backend URL above (e.g. https://your-backend.onrender.com) and click 'Save & Connect'.\n` +
+      `2. Or define window.DATA_DETECTIVE_CONFIG = { API_BASE_URL: "https://your-backend.com" } in frontend/js/config.js.`;
+  }
+}
+
+function setLoadingHealthState(baseUrl) {
   if (statusBadge) {
     statusBadge.className = "badge-status";
     statusText.textContent = "Checking Backend...";
@@ -320,9 +417,19 @@ function setLoadingHealthState() {
   if (healthStatusValue) {
     healthStatusValue.textContent = "Connecting...";
   }
+  if (apiServerUrl && baseUrl) {
+    apiServerUrl.textContent = baseUrl;
+    apiServerUrl.style.color = "inherit";
+  }
+  if (apiDocsLink && baseUrl) {
+    apiDocsLink.href = `${baseUrl}/docs`;
+    apiDocsLink.style.pointerEvents = "auto";
+    apiDocsLink.style.opacity = "1";
+    apiDocsLink.title = "Open interactive Swagger docs";
+  }
 }
 
-function setHealthyHealthState(healthData, rootData, durationMs) {
+function setHealthyHealthState(healthData, rootData, durationMs, baseUrl) {
   if (statusBadge) {
     statusBadge.className = "badge-status healthy";
     statusText.textContent = `Backend: ${healthData.status || "Healthy"}`;
@@ -333,10 +440,21 @@ function setHealthyHealthState(healthData, rootData, durationMs) {
   if (apiRootMessage && rootData) {
     apiRootMessage.textContent = rootData.message || "OK";
   }
+  if (apiServerUrl && baseUrl) {
+    apiServerUrl.textContent = baseUrl;
+    apiServerUrl.style.color = "inherit";
+  }
+  if (apiDocsLink && baseUrl) {
+    apiDocsLink.href = `${baseUrl}/docs`;
+    apiDocsLink.style.pointerEvents = "auto";
+    apiDocsLink.style.opacity = "1";
+    apiDocsLink.title = "Open interactive Swagger docs";
+  }
   if (diagnosticsOutput) {
     diagnosticsOutput.textContent = JSON.stringify(
       {
         timestamp: new Date().toISOString(),
+        backendUrl: baseUrl,
         latency: `${durationMs}ms`,
         healthCheck: healthData,
         rootEndpoint: rootData,
@@ -347,7 +465,7 @@ function setHealthyHealthState(healthData, rootData, durationMs) {
   }
 }
 
-function setUnhealthyHealthState(errorMsg) {
+function setUnhealthyHealthState(errorMsg, baseUrl) {
   if (statusBadge) {
     statusBadge.className = "badge-status unhealthy";
     statusText.textContent = "Backend Offline";
@@ -358,12 +476,24 @@ function setUnhealthyHealthState(errorMsg) {
   if (apiRootMessage) {
     apiRootMessage.textContent = "Unavailable";
   }
+  if (apiServerUrl && baseUrl) {
+    apiServerUrl.textContent = baseUrl;
+    apiServerUrl.style.color = "var(--status-red)";
+  }
+  if (apiDocsLink && baseUrl) {
+    apiDocsLink.href = `${baseUrl}/docs`;
+    apiDocsLink.style.pointerEvents = "auto";
+    apiDocsLink.style.opacity = "1";
+  }
   if (diagnosticsOutput) {
     diagnosticsOutput.textContent = `[${new Date().toISOString()}] Connection Error:\n` +
-      `Failed to reach backend at ${API_BASE_URL}.\n` +
+      `Failed to reach backend at ${baseUrl}.\n` +
       `Details: ${errorMsg}\n\n` +
-      `Please ensure the FastAPI server is running:\n` +
-      `  .\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --reload`;
+      `Troubleshooting:\n` +
+      `1. Verify that the FastAPI backend service is running and accessible at ${baseUrl}.\n` +
+      `2. Ensure CORS is enabled on the backend (check ALLOWED_ORIGINS in .env).\n` +
+      `3. For local development, start the backend with:\n` +
+      `   .\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload`;
   }
 }
 
@@ -552,6 +682,13 @@ async function uploadAndInspectDataset() {
     return;
   }
 
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) {
+    if (btnUpload) btnUpload.disabled = false;
+    if (uploadProgressContainer) uploadProgressContainer.style.display = "none";
+    return;
+  }
+
   dismissError();
   btnUpload.disabled = true;
   uploadProgressContainer.style.display = "block";
@@ -564,7 +701,7 @@ async function uploadAndInspectDataset() {
   try {
     setProgress(55, "Reading and parsing dataset with Pandas...");
 
-    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    const response = await fetch(`${baseUrl}/api/upload`, {
       method: "POST",
       body: formData,
     });
@@ -758,6 +895,16 @@ async function runAutomatedAnalysis() {
     return;
   }
 
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) {
+    if (btnRunAnalysis) {
+      btnRunAnalysis.disabled = false;
+      btnRunAnalysis.innerHTML = `<span class="btn-icon-symbol">&#128269;</span> Run Automated Analysis`;
+    }
+    if (analysisLoading) analysisLoading.style.display = "none";
+    return;
+  }
+
   dismissError();
   if (btnRunAnalysis) {
     btnRunAnalysis.disabled = true;
@@ -773,7 +920,7 @@ async function runAutomatedAnalysis() {
   formData.append("file", fileToAnalyze);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+    const response = await fetch(`${baseUrl}/api/analyze`, {
       method: "POST",
       body: formData,
     });
@@ -1628,6 +1775,9 @@ async function previewCleaningChanges() {
     return;
   }
 
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) return;
+
   const ops = collectActiveOperations();
   if (ops.length === 0) {
     showError("No cleaning operations configured. Add at least one cleaning or duplicate rule.");
@@ -1643,7 +1793,7 @@ async function previewCleaningChanges() {
   formData.append("operations", JSON.stringify(ops));
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/clean/preview`, {
+    const response = await fetch(`${baseUrl}/api/clean/preview`, {
       method: "POST",
       body: formData,
     });
@@ -1774,6 +1924,9 @@ async function applyCleanedDataset() {
   const fileToClean = currentUploadedFile || stagedFile;
   if (!fileToClean) return;
 
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) return;
+
   const ops = collectActiveOperations();
   if (btnApplyCleaned) btnApplyCleaned.disabled = true;
 
@@ -1783,7 +1936,7 @@ async function applyCleanedDataset() {
   formData.append("format", "csv");
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/clean/download`, {
+    const response = await fetch(`${baseUrl}/api/clean/download`, {
       method: "POST",
       body: formData,
     });
@@ -1813,6 +1966,9 @@ async function applyCleanedDataset() {
 }
 
 async function downloadDatasetFile(format) {
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) return;
+
   const fileToClean = currentUploadedFile || stagedFile;
   if (!fileToClean) {
     showError("No active dataset to download.");
@@ -1826,7 +1982,7 @@ async function downloadDatasetFile(format) {
   formData.append("format", format);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/clean/download`, {
+    const response = await fetch(`${baseUrl}/api/clean/download`, {
       method: "POST",
       body: formData,
     });
@@ -2265,6 +2421,9 @@ async function downloadAllDashboardCharts() {
 
 async function regenerateAllChartsOnActiveDataset() {
   if (dashboardCharts.length === 0) return;
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) return;
+
   const itemsToRebuild = [...dashboardCharts];
   clearDashboardCharts();
 
@@ -2282,7 +2441,7 @@ async function regenerateAllChartsOnActiveDataset() {
     if (cfg.title) formData.append("title", cfg.title);
 
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/visualize`, { method: "POST", body: formData });
+      const resp = await fetch(`${baseUrl}/api/visualize`, { method: "POST", body: formData });
       if (resp.ok) {
         const payload = await resp.json();
         addChartToDashboard(payload, activeVisSource, cfg);
@@ -2296,9 +2455,12 @@ async function regenerateAllChartsOnActiveDataset() {
 async function generateVisualizationChart() {
   dismissVisError();
 
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) return;
+
   const file = getActiveDatasetFile();
   if (!file) {
-    showVisError("No dataset available. Please upload a CSV or Excel dataset first.");
+    showVisError("No dataset available. Please upload a CSV, Excel, or JSON dataset first.");
     return;
   }
 
@@ -2409,7 +2571,7 @@ async function generateVisualizationChart() {
   if (title) formData.append("title", title);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/visualize`, {
+    const response = await fetch(`${baseUrl}/api/visualize`, {
       method: "POST",
       body: formData,
     });
@@ -3095,6 +3257,9 @@ async function generateEdaReportPdf() {
   dismissReportError();
   dismissReportSuccess();
 
+  const baseUrl = checkBackendConfigured();
+  if (!baseUrl) return;
+
   let fileToReport = null;
   if (activeReportSource === "cleaned") {
     if (!cleanedDatasetFile) {
@@ -3131,7 +3296,7 @@ async function generateEdaReportPdf() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/report/generate`, {
+    const response = await fetch(`${baseUrl}/api/report/generate`, {
       method: "POST",
       body: formData,
     });
@@ -3258,6 +3423,50 @@ if (btnGenerateReport) {
 }
 if (btnDownloadReportAgain) {
   btnDownloadReportAgain.addEventListener("click", downloadLastGeneratedReport);
+}
+
+if (btnSaveBackendUrl) {
+  btnSaveBackendUrl.addEventListener("click", () => {
+    if (!inputBackendUrl) return;
+    const rawVal = inputBackendUrl.value.trim().replace(/\/+$/, "");
+    if (!rawVal) {
+      showError("Please enter a valid FastAPI backend URL (e.g. https://your-backend.onrender.com).");
+      return;
+    }
+    if (!rawVal.startsWith("http://") && !rawVal.startsWith("https://")) {
+      showError("Backend URL must begin with http:// or https://");
+      return;
+    }
+    try {
+      localStorage.setItem("DATA_DETECTIVE_API_URL", rawVal);
+      localStorage.setItem("API_BASE_URL", rawVal);
+    } catch (e) {
+      console.warn("Could not save backend URL to localStorage:", e);
+    }
+    if (typeof window !== "undefined") {
+      window.DATA_DETECTIVE_CONFIG = window.DATA_DETECTIVE_CONFIG || {};
+      window.DATA_DETECTIVE_CONFIG.API_BASE_URL = rawVal;
+    }
+    checkBackendHealth();
+  });
+}
+
+if (btnResetBackendUrl) {
+  btnResetBackendUrl.addEventListener("click", () => {
+    try {
+      localStorage.removeItem("DATA_DETECTIVE_API_URL");
+      localStorage.removeItem("API_BASE_URL");
+    } catch (e) {
+      console.warn("Could not clear backend URL from localStorage:", e);
+    }
+    if (typeof window !== "undefined" && window.DATA_DETECTIVE_CONFIG) {
+      window.DATA_DETECTIVE_CONFIG.API_BASE_URL = "";
+    }
+    if (inputBackendUrl) {
+      inputBackendUrl.value = "";
+    }
+    checkBackendHealth();
+  });
 }
 
 // Initial health check on page load
